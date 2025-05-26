@@ -4,18 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>License Dashboard</title>
+
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <script src="https://unpkg.com/simple-datatables@latest" defer></script>
   <style>
     body {
       padding-top: 70px;
-      background: #f1f3f5;
+      background: #f0f2f5;
     }
     .badge-week { background-color: #0d6efd; }
     .badge-month { background-color: #20c997; }
     .badge-lifetime { background-color: #ffc107; color: #212529; }
-    .suspended { background-color: #dc3545 !important; color: white !important; }
-    .admin-section { border-top: 2px solid #ccc; padding-top: 1rem; margin-top: 2rem; }
+    .badge-admin { background-color: #6610f2; }
+    .badge-user { background-color: #6c757d; }
+    .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body>
@@ -30,143 +32,136 @@
 </nav>
 
 <div class="container">
-
   {% with messages = get_flashed_messages() %}
     {% if messages %}
-      <div class="alert alert-info alert-dismissible fade show" role="alert">
+      <div class="alert alert-info alert-dismissible fade show mt-3" role="alert">
         {{ messages[0] }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       </div>
     {% endif %}
   {% endwith %}
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>License Keys</h2>
-    <form method="POST" action="{{ url_for('generate_key') }}" class="d-flex align-items-center gap-2">
-      <select name="type" class="form-select form-select-sm" required>
-        <option value="" disabled selected>Key type</option>
-        <option value="week">1 Week</option>
-        <option value="month">1 Month</option>
-        <option value="lifetime">Lifetime</option>
-      </select>
-      <button type="submit" class="btn btn-primary btn-sm">Generate</button>
-    </form>
+  <!-- License Keys -->
+  <div class="card mb-4 p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2>License Keys</h2>
+      <form method="POST" action="{{ url_for('generate_key') }}" class="d-flex align-items-center gap-2">
+        <select name="type" class="form-select form-select-sm" required>
+          <option value="" disabled selected>Key type</option>
+          <option value="week">1 Week</option>
+          <option value="month">1 Month</option>
+          <option value="lifetime">Lifetime</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">Generate</button>
+      </form>
+    </div>
+
+    <input type="text" id="searchInput" class="form-control mb-3" placeholder="Search keys..." />
+
+    <table id="keysTable" class="table table-hover table-bordered">
+      <thead class="table-light">
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Expires At</th>
+          <th>Created At</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in keys %}
+          <tr>
+            <td>{{ key.key }}</td>
+            <td>
+              {% if key.type == 'week' %}
+                <span class="badge badge-week">Week</span>
+              {% elif key.type == 'month' %}
+                <span class="badge badge-month">Month</span>
+              {% else %}
+                <span class="badge badge-lifetime">Lifetime</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if key.expires_at %}
+                {{ key.expires_at.strftime('%Y-%m-%d %H:%M') }}
+              {% else %}
+                <span class="badge badge-lifetime">Never</span>
+              {% endif %}
+            </td>
+            <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('delete_key', key_id=key.id) }}" onsubmit="return confirm('Delete this key?')">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
-  <input type="text" id="searchInput" class="form-control mb-3" placeholder="Search keys..." />
-
-  <table id="keysTable" class="table table-striped table-bordered">
-    <thead>
-      <tr>
-        <th>Key</th>
-        <th>Type</th>
-        <th>Expires At</th>
-        <th>Status</th>
-        <th>Created At</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for key in keys %}
-        <tr class="{{ 'suspended' if key.is_suspended }}">
-          <td>{{ key.key }}</td>
+  <!-- Manage Users -->
+  <div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2>Manage Users</h2>
+      <button class="btn btn-outline-secondary btn-sm" onclick="togglePasswords()">Toggle Passwords</button>
+    </div>
+    <table class="table table-bordered table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Password</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.username }}</td>
           <td>
-            {% if key.type == 'week' %}
-              <span class="badge badge-week">Week</span>
-            {% elif key.type == 'month' %}
-              <span class="badge badge-month">Month</span>
+            {% if user.role == 'admin' %}
+              <span class="badge badge-admin">Admin</span>
             {% else %}
-              <span class="badge badge-lifetime">Lifetime</span>
+              <span class="badge badge-user">User</span>
             {% endif %}
           </td>
+          <td class="password-cell" data-password="{{ user.password }}" style="display: none;"></td>
           <td>
-            {% if key.expires_at %}
-              {{ key.expires_at.strftime('%Y-%m-%d %H:%M') }}
+            {% if user.username != current_user.username %}
+              <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete this user?')">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+              </form>
             {% else %}
-              <span class="badge badge-lifetime">Never</span>
+              <span class="text-muted">You</span>
             {% endif %}
-          </td>
-          <td>
-            {% if key.is_suspended %}
-              <span class="text-danger">Suspended</span>
-            {% else %}
-              <span class="text-success">Active</span>
-            {% endif %}
-          </td>
-          <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-          <td class="d-flex gap-1">
-            <form method="POST" action="{{ url_for('delete_key', key_id=key.id) }}" onsubmit="return confirm('Delete this key?')">
-              <button class="btn btn-sm btn-danger">Delete</button>
-            </form>
-            <form method="POST" action="{{ url_for('toggle_suspend_key', key_id=key.id) }}">
-              <button class="btn btn-sm btn-warning">{{ 'Unsuspend' if key.is_suspended else 'Suspend' }}</button>
-            </form>
           </td>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if current_user.role == 'admin' %}
-    <div class="admin-section">
-      <h4>Manage Users</h4>
-      <table class="table table-bordered">
-        <thead>
-          <tr><th>Username</th><th>Role</th><th>Password</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for user in users %}
-            <tr>
-              <td>{{ user.username }}</td>
-              <td>{{ user.role }}</td>
-              <td>
-                <span class="password-mask" data-password="{{ user.password }}">****</span>
-              </td>
-              <td>
-                {% if user.username != 'admin' %}
-                  <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete this user?')">
-                    <button class="btn btn-sm btn-danger">Delete</button>
-                  </form>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <button class="btn btn-outline-primary btn-sm" onclick="revealPasswords()">Reveal Passwords</button>
-      <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary btn-sm float-end">View Audit Logs</a>
-    </div>
-  {% endif %}
-
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
+<!-- Bootstrap Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const dataTable = new simpleDatatables.DataTable("#keysTable", {
-      searchable: false,
-      fixedHeight: true,
-    });
-
-    document.getElementById('searchInput').addEventListener('keyup', function () {
-      const filter = this.value.toLowerCase();
-      dataTable.rows().forEach(row => {
-        const rowText = row.cells().map(cell => cell.textContent.toLowerCase()).join(' ');
-        row.show(rowText.indexOf(filter) !== -1);
-      });
-    });
-  });
-
-  function revealPasswords() {
-    const pin = prompt("Enter PIN to reveal passwords:");
-    if (pin === "9909") {
-      document.querySelectorAll('.password-mask').forEach(el => {
-        el.textContent = el.dataset.password;
-      });
-    } else {
+  function togglePasswords() {
+    const pin = prompt("Enter PIN to show passwords:");
+    if (pin !== "9909") {
       alert("Incorrect PIN.");
+      return;
     }
+    const cells = document.querySelectorAll('.password-cell');
+    cells.forEach(cell => {
+      if (cell.style.display === 'none') {
+        cell.style.display = 'table-cell';
+        cell.textContent = cell.getAttribute('data-password');
+      } else {
+        cell.style.display = 'none';
+      }
+    });
   }
 </script>
 </body>
