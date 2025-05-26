@@ -4,35 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>License Dashboard</title>
-
-  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-
-  <!-- SimpleSort for sorting table -->
   <script src="https://unpkg.com/simple-datatables@latest" defer></script>
-
   <style>
     body {
       padding-top: 70px;
-      background: #f8f9fa;
+      background: #f1f3f5;
     }
-    .badge-week {
-      background-color: #0d6efd;
-    }
-    .badge-month {
-      background-color: #20c997;
-    }
-    .badge-lifetime {
-      background-color: #ffc107;
-      color: #212529;
-    }
-    h2.text-primary {
-      color: #0d6efd !important;
-    }
+    .badge-week { background-color: #0d6efd; }
+    .badge-month { background-color: #20c997; }
+    .badge-lifetime { background-color: #ffc107; color: #212529; }
+    .suspended { background-color: #dc3545 !important; color: white !important; }
+    .admin-section { border-top: 2px solid #ccc; padding-top: 1rem; margin-top: 2rem; }
   </style>
 </head>
 <body>
-
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container-fluid">
     <a class="navbar-brand" href="#">License Manager</a>
@@ -44,7 +30,7 @@
 </nav>
 
 <div class="container">
-  <!-- Flash messages -->
+
   {% with messages = get_flashed_messages() %}
     {% if messages %}
       <div class="alert alert-info alert-dismissible fade show" role="alert">
@@ -75,13 +61,14 @@
         <th>Key</th>
         <th>Type</th>
         <th>Expires At</th>
+        <th>Status</th>
         <th>Created At</th>
-        <th>Action</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for key in keys %}
-        <tr>
+        <tr class="{{ 'suspended' if key.is_suspended }}">
           <td>{{ key.key }}</td>
           <td>
             {% if key.type == 'week' %}
@@ -99,10 +86,20 @@
               <span class="badge badge-lifetime">Never</span>
             {% endif %}
           </td>
-          <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
           <td>
-            <form method="POST" action="{{ url_for('delete_key', key_id=key.id) }}" onsubmit="return confirm('Delete this key? This action cannot be undone.')">
-              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            {% if key.is_suspended %}
+              <span class="text-danger">Suspended</span>
+            {% else %}
+              <span class="text-success">Active</span>
+            {% endif %}
+          </td>
+          <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td class="d-flex gap-1">
+            <form method="POST" action="{{ url_for('delete_key', key_id=key.id) }}" onsubmit="return confirm('Delete this key?')">
+              <button class="btn btn-sm btn-danger">Delete</button>
+            </form>
+            <form method="POST" action="{{ url_for('toggle_suspend_key', key_id=key.id) }}">
+              <button class="btn btn-sm btn-warning">{{ 'Unsuspend' if key.is_suspended else 'Suspend' }}</button>
             </form>
           </td>
         </tr>
@@ -110,43 +107,41 @@
     </tbody>
   </table>
 
-  <hr class="my-4" />
+  {% if current_user.role == 'admin' %}
+    <div class="admin-section">
+      <h4>Manage Users</h4>
+      <table class="table table-bordered">
+        <thead>
+          <tr><th>Username</th><th>Role</th><th>Password</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td>{{ user.username }}</td>
+              <td>{{ user.role }}</td>
+              <td>
+                <span class="password-mask" data-password="{{ user.password }}">****</span>
+              </td>
+              <td>
+                {% if user.username != 'admin' %}
+                  <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete this user?')">
+                    <button class="btn btn-sm btn-danger">Delete</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
 
-  <h2 class="text-primary mb-3">Manage Users</h2>
-
-  <input type="text" id="userSearchInput" class="form-control mb-3" placeholder="Search users..." />
-
-  <table id="usersTable" class="table table-striped table-bordered">
-    <thead>
-      <tr>
-        <th>Username</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for user in users %}
-      <tr>
-        <td>{{ user.username }}</td>
-        <td>
-          {% if user.id != current_user.id and user.username.lower() != 'admin' %}
-          <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete user {{ user.username }}? This cannot be undone!');">
-            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-          </form>
-          {% else %}
-            <button class="btn btn-secondary btn-sm" disabled>Protected</button>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      <button class="btn btn-outline-primary btn-sm" onclick="revealPasswords()">Reveal Passwords</button>
+      <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary btn-sm float-end">View Audit Logs</a>
+    </div>
+  {% endif %}
 
 </div>
 
-<!-- Bootstrap Bundle JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Initialize SimpleDatatables -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const dataTable = new simpleDatatables.DataTable("#keysTable", {
@@ -154,31 +149,25 @@
       fixedHeight: true,
     });
 
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('keyup', function() {
+    document.getElementById('searchInput').addEventListener('keyup', function () {
       const filter = this.value.toLowerCase();
       dataTable.rows().forEach(row => {
         const rowText = row.cells().map(cell => cell.textContent.toLowerCase()).join(' ');
         row.show(rowText.indexOf(filter) !== -1);
       });
     });
-
-    // Users table
-    const userTable = new simpleDatatables.DataTable("#usersTable", {
-      searchable: false,
-      fixedHeight: true,
-    });
-
-    const userSearchInput = document.getElementById('userSearchInput');
-    userSearchInput.addEventListener('keyup', function() {
-      const filter = this.value.toLowerCase();
-      userTable.rows().forEach(row => {
-        const rowText = row.cells().map(cell => cell.textContent.toLowerCase()).join(' ');
-        row.show(rowText.indexOf(filter) !== -1);
-      });
-    });
   });
-</script>
 
+  function revealPasswords() {
+    const pin = prompt("Enter PIN to reveal passwords:");
+    if (pin === "9909") {
+      document.querySelectorAll('.password-mask').forEach(el => {
+        el.textContent = el.dataset.password;
+      });
+    } else {
+      alert("Incorrect PIN.");
+    }
+  }
+</script>
 </body>
 </html>
