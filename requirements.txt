@@ -30,3 +30,5 @@ Flask-SQLAlchemy==3.0.3
 Flask-Migrate==4.0.4
 SQLAlchemy==2.0.19
 gunicorn
+gunicorn==20.1.0
+
