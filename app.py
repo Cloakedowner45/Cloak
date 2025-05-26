@@ -140,24 +140,26 @@ def verify_pin():
         flash('Invalid PIN.')
     return redirect(url_for('dashboard'))
 
-# --- NEW API route for license validation ---
+# --- Fixed license key validation API ---
 
 @app.route('/api/check_key', methods=['POST'])
 def check_key():
-    data = request.get_json()
-    if not data or 'key' not in data:
-        return jsonify({"valid": False, "error": "No key provided"}), 400
+    data = request.get_json(force=True)
+    key = data.get('key', '').strip()
 
-    key_str = data['key']
-    license_key = LicenseKey.query.filter_by(key=key_str).first()
+    if not key:
+        return jsonify({'valid': False, 'message': 'No key provided'}), 400
 
+    license_key = LicenseKey.query.filter_by(key=key).first()
     if not license_key:
-        return jsonify({"valid": False})
+        return jsonify({'valid': False, 'message': 'Key not found'}), 404
 
     if license_key.expires_at and license_key.expires_at < datetime.utcnow():
-        return jsonify({"valid": False})
+        return jsonify({'valid': False, 'message': 'Key expired'}), 403
 
-    return jsonify({"valid": True})
+    return jsonify({'valid': True, 'message': 'Key is valid'})
+
+# --- Admin user creation ---
 
 def create_admin_user():
     if not User.query.filter_by(username='admin').first():
