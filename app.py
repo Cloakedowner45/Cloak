@@ -51,7 +51,8 @@ def logout():
 @login_required
 def dashboard():
     keys = LicenseKey.query.order_by(LicenseKey.created_at.desc()).all()
-    return render_template('dashboard.html', keys=keys)
+    users = User.query.order_by(User.username.asc()).all()
+    return render_template('dashboard.html', keys=keys, users=users)
 
 @app.route('/generate_key', methods=['POST'])
 @login_required
@@ -87,6 +88,29 @@ def delete_key(key_id):
     flash('License key deleted successfully.')
     return redirect(url_for('dashboard'))
 
+# New route to delete user
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    # Prevent deleting yourself
+    if current_user.id == user_id:
+        flash("You cannot delete yourself!")
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get(user_id)
+    if not user:
+        abort(404)
+
+    # Optionally prevent deleting admin user, or add your own logic here
+    if user.username.lower() == 'admin':
+        flash("Cannot delete the admin user.")
+        return redirect(url_for('dashboard'))
+
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'User "{user.username}" deleted successfully.')
+    return redirect(url_for('dashboard'))
+
 @app.route('/api/check_key', methods=['POST'])
 def check_key():
     data = request.get_json()
@@ -104,7 +128,6 @@ def check_key():
 
     return jsonify({'valid': True, 'type': license_key.type, 'expires_at': str(license_key.expires_at)})
 
-# [ADDED] GET endpoint for Inno Setup validation
 @app.route('/api/validate', methods=['GET'])
 def validate_key():
     key = request.args.get('key')
@@ -119,11 +142,6 @@ def validate_key():
         return jsonify({'success': False, 'error': 'Key expired'}), 403
 
     return jsonify({'success': True, 'type': license_key.type, 'expires_at': str(license_key.expires_at)})
-
-@app.before_request
-def before_request_func():
-    # You can use this if you want to add any pre-request logic
-    pass
 
 def create_admin_user():
     if not User.query.filter_by(username='admin').first():
