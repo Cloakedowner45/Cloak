@@ -1,136 +1,73 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from datetime import datetime, timedelta
-import uuid
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from werkzeug.security import check_password_hash
+import os
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key'  # CHANGE THIS in production!
+app.secret_key = os.environ.get("SECRET_KEY", "yoursecretkey")
 
-# In-memory "database" for demo (replace with real DB later)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+
+# Dummy user setup for this example
+class User(UserMixin):
+    def __init__(self, id, username, password_hash):
+        self.id = id
+        self.username = username
+        self.password_hash = password_hash
+
 users = {
-    "Zerixx": {
-        "password": "Zerixx$123",
-        "role": "admin",
-        "id": 1,
-        "username": "Zerixx",
-    },
+    "admin": User(id=1, username="admin", password_hash="pbkdf2:sha256:600000$xyz...")  # your hashed password here
 }
-license_keys = []
-audit_logs = []
 
-# Helper to check login
-def get_current_user():
-    user_id = session.get('user_id')
-    if not user_id:
-        return None
-    for u in users.values():
-        if u['id'] == user_id:
-            return u
+@login_manager.user_loader
+def load_user(user_id):
+    for user in users.values():
+        if str(user.id) == str(user_id):
+            return user
     return None
 
-@app.route('/')
-def index():
-    user = get_current_user()
-    if user:
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
-
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
         user = users.get(username)
-        if user and user['password'] == password:
-            session['user_id'] = user['id']
-            flash('Logged in successfully.')
-            return redirect(url_for('dashboard'))
+        if user and check_password_hash(user.password_hash, password):
+            login_user(user)
+            return redirect(url_for("dashboard"))
         else:
-            flash('Invalid credentials')
-    return render_template('login.html')
+            flash("Invalid username or password", "danger")
+    return render_template("login.html")
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash('Logged out successfully.')
-    return redirect(url_for('login'))
-
-@app.route('/dashboard')
+@app.route("/dashboard")
+@login_required
 def dashboard():
-    user = get_current_user()
-    if not user:
-        return redirect(url_for('login'))
+    keys = []  # Replace with actual license key query
+    users = []  # Replace with actual user query
+    logs = []  # Replace with actual audit log query
+    show_passwords = session.get("pin_verified", False)
+    return render_template("dashboard.html", keys=keys, users=users, logs=logs, show_passwords=show_passwords, current_user=current_user)
 
-    return render_template(
-        'dashboard.html',
-        current_user=user,
-        keys=license_keys,
-        users=users.values(),
-        logs=reversed(audit_logs),  # Show newest first
-        show_passwords=False,
-    )
+@app.route("/verify_pin", methods=["POST"])
+@login_required
+def verify_pin():
+    entered_pin = request.form.get("pin")
+    correct_pin = "1234"  # Replace with your secure PIN
 
-@app.route('/generate_key', methods=['POST'])
-def generate_key():
-    user = get_current_user()
-    if not user:
-        return redirect(url_for('login'))
+    if entered_pin == correct_pin:
+        session["pin_verified"] = True
+        flash("PIN verified successfully. Passwords are now visible.", "success")
+    else:
+        flash("Invalid PIN. Please try again.", "danger")
+    return redirect(url_for("dashboard"))
 
-    key_type = request.form.get('type')
-    if key_type not in ['week', 'month', 'lifetime']:
-        flash('Invalid key type.')
-        return redirect(url_for('dashboard'))
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
 
-    key = str(uuid.uuid4())
-    created_at = datetime.utcnow()
-    expires_at = None
-    if key_type == 'week':
-        expires_at = created_at + timedelta(weeks=1)
-    elif key_type == 'month':
-        expires_at = created_at + timedelta(days=30)
-
-    license_keys.append({
-        'key': key,
-        'type': key_type,
-        'created_at': created_at,
-        'expires_at': expires_at,
-        'id': len(license_keys) + 1,
-    })
-
-    audit_logs.append({
-        'timestamp': datetime.utcnow(),
-        'user_id': user['id'],
-        'action': f'Generated {key_type} license key: {key}',
-    })
-    flash('License key generated.')
-    return redirect(url_for('dashboard'))
-
-@app.route('/delete_key/<int:key_id>', methods=['POST'])
-def delete_key(key_id):
-    user = get_current_user()
-    if not user:
-        return redirect(url_for('login'))
-
-    global license_keys
-    license_keys = [k for k in license_keys if k['id'] != key_id]
-    flash('Key deleted.')
-    return redirect(url_for('dashboard'))
-
-@app.route('/delete_user/<int:user_id>', methods=['POST'])
-def delete_user(user_id):
-    user = get_current_user()
-    if not user or user['role'] != 'admin':
-        flash('Unauthorized.')
-        return redirect(url_for('dashboard'))
-
-    # prevent deleting self
-    if user['id'] == user_id:
-        flash('Cannot delete yourself.')
-        return redirect(url_for('dashboard'))
-
-    global users
-    users = {uname: u for uname, u in users.items() if u['id'] != user_id}
-    flash('User deleted.')
-    return redirect(url_for('dashboard'))
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
