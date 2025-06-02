@@ -9,7 +9,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///licenses.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
 limiter = Limiter(app, key_func=get_remote_address)
 
 class LicenseKey(db.Model):
@@ -20,14 +19,21 @@ class LicenseKey(db.Model):
     ip_address = db.Column(db.String(100), nullable=True)
     hardware_id = db.Column(db.String(100), nullable=True)
 
-# Create tables immediately after app & db setup (fix for Flask 2.3+)
+# Create tables on app start (without deprecated before_first_request)
 with app.app_context():
     db.create_all()
+
+@app.route('/')
+def index():
+    return "Hello, Cloak is running!"
 
 @app.route('/api/check_key', methods=['POST'])
 @limiter.limit("5 per minute")
 def check_key():
     data = request.get_json()
+    if not data:
+        return jsonify({'valid': False, 'error': 'Missing JSON body'}), 400
+
     key = data.get('key')
     hwid = data.get('hwid')
     request_ip = request.remote_addr
@@ -48,6 +54,7 @@ def check_key():
     if license_key.hardware_id and hwid and license_key.hardware_id != hwid:
         return jsonify({'valid': False, 'error': 'Key locked to another machine'}), 403
 
+    # Bind IP and hardware ID if not set
     if not license_key.ip_address:
         license_key.ip_address = request_ip
     if hwid and not license_key.hardware_id:
@@ -57,4 +64,4 @@ def check_key():
     return jsonify({'valid': True})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', port=5000)
