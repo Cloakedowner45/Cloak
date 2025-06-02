@@ -9,6 +9,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///licenses.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+# Initialize Limiter with app factory style to avoid __init__ errors
 limiter = Limiter(key_func=get_remote_address)
 limiter.init_app(app)
 
@@ -27,10 +29,14 @@ class LicenseUsage(db.Model):
     ip = db.Column(db.String(100))
     hwid = db.Column(db.String(100))
 
+@app.route('/')
+def home():
+    return "Server is running"
+
 @app.route('/api/check_key', methods=['POST'])
 @limiter.limit("5 per minute")
 def check_key():
-    data = request.get_json()
+    data = request.get_json() or {}
     key = data.get('key')
     hwid = data.get('hwid')
     request_ip = request.remote_addr
@@ -65,7 +71,9 @@ def check_key():
 
     return jsonify({'valid': True})
 
+# Create DB tables when app context starts
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run()
+    app.run(host='0.0.0.0', port=5000, debug=True)
