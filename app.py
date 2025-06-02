@@ -10,6 +10,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# Initialize Limiter without app, then attach with init_app
 limiter = Limiter(key_func=get_remote_address)
 limiter.init_app(app)
 
@@ -52,12 +53,14 @@ def check_key():
     if license_key.hardware_id and hwid and license_key.hardware_id != hwid:
         return jsonify({'valid': False, 'error': 'Key locked to another machine'}), 403
 
+    # First-time use sets IP and HWID
     if not license_key.ip_address:
         license_key.ip_address = request_ip
     if hwid and not license_key.hardware_id:
         license_key.hardware_id = hwid
     db.session.commit()
 
+    # Log the usage
     usage = LicenseUsage(key_id=license_key.id, ip=request_ip, hwid=hwid)
     db.session.add(usage)
     db.session.commit()
