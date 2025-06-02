@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import os
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///licenses.db'
@@ -10,7 +11,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Initialize Limiter with app factory style to avoid __init__ errors
+# Configure Limiter with default in-memory storage
 limiter = Limiter(key_func=get_remote_address)
 limiter.init_app(app)
 
@@ -28,6 +29,10 @@ class LicenseUsage(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     ip = db.Column(db.String(100))
     hwid = db.Column(db.String(100))
+
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
 @app.route('/')
 def home():
@@ -57,23 +62,20 @@ def check_key():
     if license_key.hardware_id and hwid and license_key.hardware_id != hwid:
         return jsonify({'valid': False, 'error': 'Key locked to another machine'}), 403
 
-    # First-time use sets IP and HWID
+    # Set IP and HWID on first use
     if not license_key.ip_address:
         license_key.ip_address = request_ip
     if hwid and not license_key.hardware_id:
         license_key.hardware_id = hwid
     db.session.commit()
 
-    # Log the usage
+    # Log usage
     usage = LicenseUsage(key_id=license_key.id, ip=request_ip, hwid=hwid)
     db.session.add(usage)
     db.session.commit()
 
     return jsonify({'valid': True})
 
-# Create DB tables when app context starts
-with app.app_context():
-    db.create_all()
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
