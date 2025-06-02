@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash
 import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "yoursecretkey")
+app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key")
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -18,7 +18,7 @@ class User(UserMixin):
         self.password_hash = password_hash
 
 users = {
-    "admin": User(id=1, username="admin", password_hash="pbkdf2:sha256:600000$xyz...")  # your hashed password here
+    "admin": User(id=1, username="admin", password_hash="pbkdf2:sha256:600000$xyz...")  # Replace with your hashed password
 }
 
 @login_manager.user_loader
@@ -45,10 +45,10 @@ def login():
 @login_required
 def dashboard():
     keys = []  # Replace with actual license key query
-    users = []  # Replace with actual user query
+    users_list = []  # Replace with actual user query
     logs = []  # Replace with actual audit log query
     show_passwords = session.get("pin_verified", False)
-    return render_template("dashboard.html", keys=keys, users=users, logs=logs, show_passwords=show_passwords, current_user=current_user)
+    return render_template("dashboard.html", keys=keys, users=users_list, logs=logs, show_passwords=show_passwords, current_user=current_user)
 
 @app.route("/verify_pin", methods=["POST"])
 @login_required
