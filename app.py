@@ -1,89 +1,127 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session
-from flask_sqlalchemy import SQLAlchemy
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from datetime import datetime, timedelta
-import secrets
+import uuid
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key'  # Use something strong here
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///licenses.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = 'your-secret-key'  # CHANGE THIS in production!
 
-db = SQLAlchemy(app)
-limiter = Limiter(app, key_func=get_remote_address)
+# In-memory "database" for demo (replace with real DB later)
+users = {
+    "Zerixx": {
+        "password": "Zerixx$123",
+        "role": "admin",
+        "id": 1,
+    },
+}
+license_keys = []
+audit_logs = []
 
-class LicenseKey(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(64), unique=True, nullable=False)
-    valid = db.Column(db.Boolean, default=True)
-    expires_at = db.Column(db.DateTime, nullable=True)
-    ip_address = db.Column(db.String(100), nullable=True)
-    hardware_id = db.Column(db.String(100), nullable=True)
-
-@app.before_request
-def create_tables():
-    db.create_all()
+# Helper to check login
+def get_current_user():
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    for u in users.values():
+        if u['id'] == user_id:
+            return u
+    return None
 
 @app.route('/')
 def index():
-    if not session.get('logged_in'):
-        return render_template('login.html')
-    return render_template('admin.html')
+    user = get_current_user()
+    if user:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
-    if username == 'admin' and password == 'password':
-        session['logged_in'] = True
-        return redirect(url_for('index'))
-    return 'Invalid credentials', 403
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = users.get(username)
+        if user and user['password'] == password:
+            session['user_id'] = user['id']
+            flash('Logged in successfully.')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid credentials')
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
-    return redirect(url_for('index'))
+    session.clear()
+    flash('Logged out successfully.')
+    return redirect(url_for('login'))
 
-@app.route('/generate', methods=['POST'])
-def generate_key():
-    if not session.get('logged_in'):
-        return redirect(url_for('index'))
-    new_key = secrets.token_hex(16)
-    expires_at = datetime.utcnow() + timedelta(days=30)
-    license_key = LicenseKey(key=new_key, expires_at=expires_at)
-    db.session.add(license_key)
-    db.session.commit()
-    return jsonify({'key': new_key, 'expires_at': expires_at.isoformat()})
+@app.route('/dashboard', methods=['GET', 'POST'])
+def dashboard():
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
 
-@app.route('/api/check_key', methods=['POST'])
-@limiter.limit("5 per minute")
-def check_key():
-    data = request.get_json()
-    key = data.get('key')
-    hwid = data.get('hwid')
-    request_ip = request.remote_addr
+    # Generate key if form submitted
+    if request.method == 'POST':
+        key_type = request.form.get('type')
+        if key_type in ['week', 'month', 'lifetime']:
+            key = str(uuid.uuid4())
+            created_at = datetime.utcnow()
+            expires_at = None
+            if key_type == 'week':
+                expires_at = created_at + timedelta(weeks=1)
+            elif key_type == 'month':
+                expires_at = created_at + timedelta(days=30)
+            license_keys.append({
+                'key': key,
+                'type': key_type,
+                'created_at': created_at,
+                'expires_at': expires_at,
+                'id': len(license_keys) + 1,
+            })
+            audit_logs.append({
+                'timestamp': datetime.utcnow(),
+                'user_id': user['id'],
+                'action': f'Generated {key_type} license key: {key}',
+            })
+            flash('License key generated.')
+        else:
+            flash('Invalid key type.')
 
-    if not key:
-        return jsonify({'valid': False, 'error': 'Missing key'}), 400
+    return render_template(
+        'dashboard.html',
+        current_user=user,
+        keys=license_keys,
+        users=users.values(),
+        logs=reversed(audit_logs),  # Show newest first
+        show_passwords=False,
+    )
 
-    license_key = LicenseKey.query.filter_by(key=key).first()
-    if not license_key or not license_key.valid:
-        return jsonify({'valid': False, 'error': 'Invalid key'}), 403
+@app.route('/delete_key/<int:key_id>', methods=['POST'])
+def delete_key(key_id):
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
 
-    if license_key.expires_at and license_key.expires_at < datetime.utcnow():
-        return jsonify({'valid': False, 'error': 'Key expired'}), 403
+    global license_keys
+    license_keys = [k for k in license_keys if k['id'] != key_id]
+    flash('Key deleted.')
+    return redirect(url_for('dashboard'))
 
-    if license_key.ip_address and license_key.ip_address != request_ip:
-        return jsonify({'valid': False, 'error': 'Key locked to another IP'}), 403
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+def delete_user(user_id):
+    user = get_current_user()
+    if not user or user['role'] != 'admin':
+        flash('Unauthorized.')
+        return redirect(url_for('dashboard'))
 
-    if license_key.hardware_id and hwid and license_key.hardware_id != hwid:
-        return jsonify({'valid': False, 'error': 'Key locked to another machine'}), 403
+    # prevent deleting self
+    if user['id'] == user_id:
+        flash('Cannot delete yourself.')
+        return redirect(url_for('dashboard'))
 
-    if not license_key.ip_address:
-        license_key.ip_address = request_ip
-    if hwid and not license_key.hardware_id:
-        license_key.hardware_id = hwid
-    db.session.commit()
+    global users
+    users = {uname: u for uname, u in users.items() if u['id'] != user_id}
+    flash('User deleted.')
+    return redirect(url_for('dashboard'))
 
-    return jsonify({'valid': True})
+if __name__ == '__main__':
+    app.run(debug=True)
