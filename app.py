@@ -10,8 +10,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Rate limiter with in-memory storage (no Redis)
-limiter = Limiter(app, key_func=get_remote_address, default_limits=["5 per minute"])
+limiter = Limiter(app, key_func=get_remote_address)
 
 class LicenseKey(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -21,14 +20,14 @@ class LicenseKey(db.Model):
     ip_address = db.Column(db.String(100), nullable=True)
     hardware_id = db.Column(db.String(100), nullable=True)
 
-@app.before_first_request
-def create_tables():
+# Create tables immediately after app & db setup (fix for Flask 2.3+)
+with app.app_context():
     db.create_all()
 
 @app.route('/api/check_key', methods=['POST'])
 @limiter.limit("5 per minute")
 def check_key():
-    data = request.get_json(force=True)
+    data = request.get_json()
     key = data.get('key')
     hwid = data.get('hwid')
     request_ip = request.remote_addr
@@ -49,16 +48,13 @@ def check_key():
     if license_key.hardware_id and hwid and license_key.hardware_id != hwid:
         return jsonify({'valid': False, 'error': 'Key locked to another machine'}), 403
 
-    # Lock IP and HWID if not set yet
     if not license_key.ip_address:
         license_key.ip_address = request_ip
     if hwid and not license_key.hardware_id:
         license_key.hardware_id = hwid
-
     db.session.commit()
 
     return jsonify({'valid': True})
 
-if __name__ == "__main__":
-    # For local testing only; Render will use gunicorn
-    app.run(host="0.0.0.0", port=5000)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')
