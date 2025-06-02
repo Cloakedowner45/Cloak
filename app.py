@@ -9,7 +9,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///licenses.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-limiter = Limiter(key_func=get_remote_address, app=app)
+
+limiter = Limiter(app, key_func=get_remote_address)
 
 class LicenseKey(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -19,16 +20,9 @@ class LicenseKey(db.Model):
     ip_address = db.Column(db.String(100), nullable=True)
     hardware_id = db.Column(db.String(100), nullable=True)
 
-class LicenseUsage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    key_id = db.Column(db.Integer, db.ForeignKey('license_key.id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    ip = db.Column(db.String(100))
-    hwid = db.Column(db.String(100))
-
-@app.route('/')
-def home():
-    return "Server is running"
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
 @app.route('/api/check_key', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -60,14 +54,4 @@ def check_key():
         license_key.hardware_id = hwid
     db.session.commit()
 
-    usage = LicenseUsage(key_id=license_key.id, ip=request_ip, hwid=hwid)
-    db.session.add(usage)
-    db.session.commit()
-
     return jsonify({'valid': True})
-
-with app.app_context():
-    db.create_all()
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0')
