@@ -11,6 +11,7 @@ users = {
         "password": "Zerixx$123",
         "role": "admin",
         "id": 1,
+        "username": "Zerixx",
     },
 }
 license_keys = []
@@ -53,38 +54,11 @@ def logout():
     flash('Logged out successfully.')
     return redirect(url_for('login'))
 
-@app.route('/dashboard', methods=['GET', 'POST'])
+@app.route('/dashboard')
 def dashboard():
     user = get_current_user()
     if not user:
         return redirect(url_for('login'))
-
-    # Generate key if form submitted
-    if request.method == 'POST':
-        key_type = request.form.get('type')
-        if key_type in ['week', 'month', 'lifetime']:
-            key = str(uuid.uuid4())
-            created_at = datetime.utcnow()
-            expires_at = None
-            if key_type == 'week':
-                expires_at = created_at + timedelta(weeks=1)
-            elif key_type == 'month':
-                expires_at = created_at + timedelta(days=30)
-            license_keys.append({
-                'key': key,
-                'type': key_type,
-                'created_at': created_at,
-                'expires_at': expires_at,
-                'id': len(license_keys) + 1,
-            })
-            audit_logs.append({
-                'timestamp': datetime.utcnow(),
-                'user_id': user['id'],
-                'action': f'Generated {key_type} license key: {key}',
-            })
-            flash('License key generated.')
-        else:
-            flash('Invalid key type.')
 
     return render_template(
         'dashboard.html',
@@ -94,6 +68,41 @@ def dashboard():
         logs=reversed(audit_logs),  # Show newest first
         show_passwords=False,
     )
+
+@app.route('/generate_key', methods=['POST'])
+def generate_key():
+    user = get_current_user()
+    if not user:
+        return redirect(url_for('login'))
+
+    key_type = request.form.get('type')
+    if key_type not in ['week', 'month', 'lifetime']:
+        flash('Invalid key type.')
+        return redirect(url_for('dashboard'))
+
+    key = str(uuid.uuid4())
+    created_at = datetime.utcnow()
+    expires_at = None
+    if key_type == 'week':
+        expires_at = created_at + timedelta(weeks=1)
+    elif key_type == 'month':
+        expires_at = created_at + timedelta(days=30)
+
+    license_keys.append({
+        'key': key,
+        'type': key_type,
+        'created_at': created_at,
+        'expires_at': expires_at,
+        'id': len(license_keys) + 1,
+    })
+
+    audit_logs.append({
+        'timestamp': datetime.utcnow(),
+        'user_id': user['id'],
+        'action': f'Generated {key_type} license key: {key}',
+    })
+    flash('License key generated.')
+    return redirect(url_for('dashboard'))
 
 @app.route('/delete_key/<int:key_id>', methods=['POST'])
 def delete_key(key_id):
