@@ -1,22 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
-import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+app.secret_key = 'zerixxsecret1$'  # Change this to a strong secret key
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Dummy user class and data for example
+# Dummy user class and user store
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
 
-# Replace with your actual user validation logic
 users = {
-    'admin': {'password': 'yourpassword'}
+    "Zerixx": {"password": "Zerixxpass"}
 }
 
 @login_manager.user_loader
@@ -25,12 +23,13 @@ def load_user(user_id):
         return User(user_id)
     return None
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username')
+        password = request.form.get('password')
         user = users.get(username)
+
         if user and user['password'] == password:
             user_obj = User(username)
             login_user(user_obj)
@@ -38,20 +37,36 @@ def login():
         else:
             flash('Invalid username or password')
             return redirect(url_for('login'))
-    return render_template('login.html')
 
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    # Add your dashboard logic here
-    return render_template('dashboard.html')
+    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
+    session.pop('show_passwords', None)
     return redirect(url_for('login'))
 
+@app.route('/dashboard', methods=['GET'])
+@login_required
+def dashboard():
+    show_passwords = session.get('show_passwords', False)
+    return render_template('dashboard.html', show_passwords=show_passwords)
+
+@app.route('/verify_pin', methods=['POST'])
+@login_required
+def verify_pin():
+    pin = request.form.get('pin')
+    correct_pin = "9909"  # Change this to your actual PIN logic or secure check
+
+    if pin == correct_pin:
+        session['show_passwords'] = True
+        flash('PIN verified! Passwords are now visible.')
+    else:
+        flash('Incorrect PIN. Please try again.')
+        session['show_passwords'] = False
+
+    return redirect(url_for('dashboard'))
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True)
