@@ -3,21 +3,13 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from redis import Redis
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///licenses.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
-# Configure Redis storage for Flask-Limiter (adjust Redis URL if needed)
-redis_client = Redis(host='localhost', port=6379, db=0, decode_responses=True)
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri="redis://localhost:6379",
-    app=app,
-)
+limiter = Limiter(key_func=get_remote_address, app=app)
 
 class LicenseKey(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,12 +26,9 @@ class LicenseUsage(db.Model):
     ip = db.Column(db.String(100))
     hwid = db.Column(db.String(100))
 
-# Create tables once when app starts
-def create_tables():
-    with app.app_context():
-        db.create_all()
-
-create_tables()
+@app.route('/')
+def home():
+    return "Server is running"
 
 @app.route('/api/check_key', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -65,19 +54,20 @@ def check_key():
     if license_key.hardware_id and hwid and license_key.hardware_id != hwid:
         return jsonify({'valid': False, 'error': 'Key locked to another machine'}), 403
 
-    # First-time use sets IP and HWID
     if not license_key.ip_address:
         license_key.ip_address = request_ip
     if hwid and not license_key.hardware_id:
         license_key.hardware_id = hwid
     db.session.commit()
 
-    # Log the usage
     usage = LicenseUsage(key_id=license_key.id, ip=request_ip, hwid=hwid)
     db.session.add(usage)
     db.session.commit()
 
     return jsonify({'valid': True})
+
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
