@@ -54,8 +54,11 @@
   <!-- License Keys Section -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>License Keys</h2>
-    <!-- FIXED form action here -->
     <form method="POST" action="{{ url_for('dashboard') }}" class="d-flex align-items-center gap-2">
+      <!-- Add your CSRF token here if using Flask-WTF -->
+      {% if csrf_token %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% endif %}
       <select name="type" class="form-select form-select-sm" required>
         <option value="" disabled selected>Key type</option>
         <option value="week">1 Week</option>
@@ -84,23 +87,26 @@
           <td>{{ key.key }}</td>
           <td>
             {% if key.type == 'week' %}
-              <span class="badge badge-week">Week</span>
+              <span class="badge badge-week badge">Week</span>
             {% elif key.type == 'month' %}
-              <span class="badge badge-month">Month</span>
+              <span class="badge badge-month badge">Month</span>
             {% else %}
-              <span class="badge badge-lifetime">Lifetime</span>
+              <span class="badge badge-lifetime badge">Lifetime</span>
             {% endif %}
           </td>
           <td>
             {% if key.expires_at %}
               {{ key.expires_at.strftime('%Y-%m-%d %H:%M') }}
             {% else %}
-              <span class="badge badge-lifetime">Never</span>
+              <span class="badge badge-lifetime badge">Never</span>
             {% endif %}
           </td>
           <td>{{ key.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
           <td>
             <form method="POST" action="{{ url_for('delete_key', key_id=key.id) }}" onsubmit="return confirm('Delete this key? This action cannot be undone.')">
+              {% if csrf_token %}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% endif %}
               <button type="submit" class="btn btn-danger btn-sm">Delete</button>
             </form>
           </td>
@@ -136,6 +142,9 @@
             <td>
               {% if current_user.role == 'admin' and user.id != current_user.id %}
               <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete this user? This action cannot be undone.')">
+                {% if csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% endif %}
                 <button type="submit" class="btn btn-danger btn-sm">Delete</button>
               </form>
               {% else %}
@@ -149,6 +158,9 @@
 
     {% if not show_passwords %}
     <form method="POST" action="{{ url_for('verify_pin') }}" class="mt-3 d-flex gap-2 align-items-center">
+      {% if csrf_token %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% endif %}
       <label for="pinInput" class="mb-0">Enter PIN to view passwords:</label>
       <input type="password" name="pin" id="pinInput" class="form-control form-control-sm" style="max-width: 100px;" required />
       <button type="submit" class="btn btn-warning btn-sm">Verify</button>
