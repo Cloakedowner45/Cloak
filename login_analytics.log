@@ -1,0 +1,51 @@
+2025-06-02 21:34:09,765 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:34:09,765 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:34:09,765 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:34:09,821 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-02 21:34:09,821 [33mPress CTRL+C to quit[0m
+2025-06-02 21:34:09,823  * Restarting with stat
+2025-06-02 21:34:10,083 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:34:10,083 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:34:10,084 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:34:10,098  * Debugger is active!
+2025-06-02 21:34:10,100  * Debugger PIN: 142-710-998
+2025-06-02 21:35:21,404 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:35:21,404 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:35:21,404 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:35:21,432 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-02 21:35:21,432 [33mPress CTRL+C to quit[0m
+2025-06-02 21:35:21,433  * Restarting with stat
+2025-06-02 21:35:21,715 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:35:21,715 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:35:21,716 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:35:21,731  * Debugger is active!
+2025-06-02 21:35:21,734  * Debugger PIN: 142-710-998
+2025-06-02 21:36:16,935  * Detected change in 'C:\\Users\\John\\license_manager\\app.py', reloading
+2025-06-02 21:36:16,975  * Restarting with stat
+2025-06-02 21:36:17,247 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:36:17,248 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:36:17,248 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:36:17,270  * Debugger is active!
+2025-06-02 21:36:17,273  * Debugger PIN: 142-710-998
+2025-06-02 21:36:31,417 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:36:31,417 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:36:31,417 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:36:31,442 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-02 21:36:31,442 [33mPress CTRL+C to quit[0m
+2025-06-02 21:36:31,443  * Restarting with stat
+2025-06-02 21:36:31,688 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:36:31,689 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:36:31,689 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:36:31,704  * Debugger is active!
+2025-06-02 21:36:31,707  * Debugger PIN: 142-710-998
+2025-06-02 21:37:03,729 127.0.0.1 - - [02/Jun/2025 21:37:03] "GET / HTTP/1.1" 200 -
+2025-06-02 21:37:04,089 127.0.0.1 - - [02/Jun/2025 21:37:04] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-06-02 21:37:05,383 FAILED login attempt 1 for Zerixx from IP 127.0.0.1
+2025-06-02 21:37:05,384 127.0.0.1 - - [02/Jun/2025 21:37:05] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-06-02 21:37:05,389 127.0.0.1 - - [02/Jun/2025 21:37:05] "GET / HTTP/1.1" 200 -
+2025-06-02 21:37:10,715 SUCCESS login for Zerixx from IP 127.0.0.1
+2025-06-02 21:37:10,716 127.0.0.1 - - [02/Jun/2025 21:37:10] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-06-02 21:37:10,725 127.0.0.1 - - [02/Jun/2025 21:37:10] "GET /dashboard HTTP/1.1" 200 -
