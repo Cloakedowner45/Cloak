@@ -10,9 +10,9 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
   <div class="container-fluid">
-    <a class="navbar-brand" href="#">Admin Panel</a>
+    <a class="navbar-brand" href="{{ url_for('dashboard') }}">Admin Panel</a>
     <div class="d-flex">
-      <span class="navbar-text me-3">Welcome, {{ current_user.username }}</span>
+      <span class="navbar-text me-3">Welcome, {{ current_user.id }}</span>
       <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
     </div>
   </div>
@@ -29,13 +29,13 @@
       </tr>
     </thead>
     <tbody>
-      {% for user in users %}
+      {% for user_id, user_data in users.items() %}
       <tr>
-        <td>{{ user.username }}</td>
-        <td>{{ user.role }}</td>
+        <td>{{ user_id }}</td>
+        <td>{{ user_data.role or 'User' }}</td>
         <td>
-          {% if user.id != current_user.id %}
-          <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Delete this user?')">
+          {% if user_id != current_user.id %}
+          <form method="POST" action="{{ url_for('delete_user', user_id=user_id) }}" onsubmit="return confirm('Delete this user?')">
             <button type="submit" class="btn btn-danger btn-sm">Delete</button>
           </form>
           {% else %}
@@ -61,10 +61,7 @@
       {% for log in logs %}
       <tr>
         <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-        <td>
-          {% set user = users | selectattr('id', 'equalto', log.user_id) | first %}
-          {{ user.username if user else 'Unknown' }}
-        </td>
+        <td>{{ log.user_id }}</td>
         <td>{{ log.action }}</td>
       </tr>
       {% endfor %}
