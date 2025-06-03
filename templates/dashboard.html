@@ -1,18 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard - License Manager</title>
+  <title>🛠️ Dashboard - License Manager</title>
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background-color: #121212;
+      color: #eee;
+    }
+    .btn-purple {
+      background-color: #6a4bcf;
+      color: white;
+      border-radius: 8px;
+    }
+    .btn-purple:hover {
+      background-color: #8253ff;
+      color: white;
+    }
+    .container {
+      max-width: 900px;
+    }
+    .password-list code {
+      background-color: #2e1a47;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #ddd;
+    }
+  </style>
 </head>
 <body>
   <div class="container mt-4">
-    <h1>Welcome to your Dashboard</h1>
+    <h1>🚀 Welcome, {{ current_user.id }}!</h1>
+    <p>Your role: <strong>{{ role }}</strong></p>
 
-    <!-- Flash messages -->
     {% with messages = get_flashed_messages() %}
       {% if messages %}
         <div class="alert alert-info alert-dismissible fade show" role="alert">
@@ -22,26 +46,35 @@
       {% endif %}
     {% endwith %}
 
-    <!-- PIN Verification Form -->
     {% if not show_passwords %}
-    <form method="POST" action="{{ url_for('verify_pin') }}" class="mt-3 d-flex gap-2 align-items-center">
-      <label for="pinInput" class="mb-0">Enter PIN to view passwords:</label>
-      <input type="password" name="pin" id="pinInput" class="form-control form-control-sm" style="max-width: 100px;" required />
-      <button type="submit" class="btn btn-warning btn-sm">Verify</button>
-    </form>
+      <form method="POST" action="{{ url_for('verify_pin') }}" class="mt-3 d-flex gap-2 align-items-center flex-wrap">
+        <label for="pinInput" class="mb-0 me-2">🔐 Enter PIN to view passwords:</label>
+        <input type="password" name="pin" id="pinInput" class="form-control form-control-sm" style="max-width: 120px;" required />
+        <button type="submit" class="btn btn-purple btn-sm">Verify</button>
+      </form>
     {% else %}
-    <p><strong>Passwords are visible here (example content):</strong></p>
-    <ul>
-      <li>Sample Password 1: <code>password123</code></li>
-      <li>Sample Password 2: <code>licensekey456</code></li>
-      <!-- Replace with your actual sensitive info -->
-    </ul>
+      <section class="password-list mt-3">
+        <h4>🔑 Passwords (example):</h4>
+        <ul>
+          <li>Sample Password 1: <code>password123</code></li>
+          <li>Sample Password 2: <code>licensekey456</code></li>
+          <!-- Replace with your actual sensitive info -->
+        </ul>
+      </section>
     {% endif %}
 
-    <a href="{{ url_for('logout') }}" class="btn btn-secondary mt-4">Logout</a>
+    {% if role == 'admin' %}
+    <section class="mt-5">
+      <h3>🛠️ Admin Tools</h3>
+      <button class="btn btn-purple mb-3" onclick="alert('Suspend key feature coming soon!')">🔒 Suspend License Key</button>
+      <!-- Here you can add actual forms for key suspension -->
+    </section>
+    {% endif %}
+
+    <a href="{{ url_for('logout') }}" class="btn btn-secondary mt-4">🚪 Logout</a>
   </div>
 
-  <!-- Bootstrap Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- TODO: Add JS session timeout warning and auto logout -->
 </body>
 </html>
