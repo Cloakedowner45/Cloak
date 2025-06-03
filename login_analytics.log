@@ -49,3 +49,49 @@
 2025-06-02 21:37:10,715 SUCCESS login for Zerixx from IP 127.0.0.1
 2025-06-02 21:37:10,716 127.0.0.1 - - [02/Jun/2025 21:37:10] "[32mPOST / HTTP/1.1[0m" 302 -
 2025-06-02 21:37:10,725 127.0.0.1 - - [02/Jun/2025 21:37:10] "GET /dashboard HTTP/1.1" 200 -
+2025-06-02 21:41:09,928 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:41:09,928 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:41:09,928 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:41:09,959 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-02 21:41:09,959 [33mPress CTRL+C to quit[0m
+2025-06-02 21:41:09,960  * Restarting with stat
+2025-06-02 21:41:10,582 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:41:10,582 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:41:10,582 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:41:10,599  * Debugger is active!
+2025-06-02 21:41:10,602  * Debugger PIN: 142-710-998
+2025-06-02 21:43:08,795 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:43:08,795 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:43:08,795 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:43:08,819 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-02 21:43:08,819 [33mPress CTRL+C to quit[0m
+2025-06-02 21:43:08,820  * Restarting with stat
+2025-06-02 21:43:09,067 Python-dotenv could not parse statement starting at line 1
+2025-06-02 21:43:09,067 Python-dotenv could not parse statement starting at line 2
+2025-06-02 21:43:09,067 Python-dotenv could not parse statement starting at line 4
+2025-06-02 21:43:09,081  * Debugger is active!
+2025-06-02 21:43:09,084  * Debugger PIN: 142-710-998
+2025-06-02 21:43:10,088 127.0.0.1 - - [02/Jun/2025 21:43:10] "GET / HTTP/1.1" 200 -
+2025-06-02 21:43:13,341 FAILED login 1 for Zerixx from IP 127.0.0.1
+2025-06-02 21:43:13,342 127.0.0.1 - - [02/Jun/2025 21:43:13] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-06-02 21:43:13,347 127.0.0.1 - - [02/Jun/2025 21:43:13] "GET / HTTP/1.1" 200 -
+2025-06-02 21:43:16,956 SUCCESS login for Zerixx from IP 127.0.0.1
+2025-06-02 21:43:16,957 127.0.0.1 - - [02/Jun/2025 21:43:16] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-06-02 21:43:16,968 127.0.0.1 - - [02/Jun/2025 21:43:16] "[35m[1mGET /dashboard HTTP/1.1[0m" 500 -
+2025-06-02 21:43:17,049 127.0.0.1 - - [02/Jun/2025 21:43:17] "GET /dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2025-06-02 21:43:17,049 127.0.0.1 - - [02/Jun/2025 21:43:17] "GET /dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2025-06-02 21:43:17,070 127.0.0.1 - - [02/Jun/2025 21:43:17] "GET /dashboard?__debugger__=yes&cmd=resource&f=console.png&s=tWIHKgUkWhfEbgWZeDwM HTTP/1.1" 200 -
+2025-06-02 21:43:51,046 127.0.0.1 - - [02/Jun/2025 21:43:51] "GET / HTTP/1.1" 200 -
+2025-06-02 21:43:52,291 FAILED login 1 for Zerixx from IP 127.0.0.1
+2025-06-02 21:43:52,292 127.0.0.1 - - [02/Jun/2025 21:43:52] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-06-02 21:43:52,297 127.0.0.1 - - [02/Jun/2025 21:43:52] "GET / HTTP/1.1" 200 -
+2025-06-02 21:43:56,033 SUCCESS login for Zerixx from IP 127.0.0.1
+2025-06-02 21:43:56,034 127.0.0.1 - - [02/Jun/2025 21:43:56] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-06-02 21:43:56,046 127.0.0.1 - - [02/Jun/2025 21:43:56] "[35m[1mGET /dashboard HTTP/1.1[0m" 500 -
+2025-06-02 21:43:56,080 127.0.0.1 - - [02/Jun/2025 21:43:56] "[36mGET /dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2025-06-02 21:43:56,080 127.0.0.1 - - [02/Jun/2025 21:43:56] "[36mGET /dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2025-06-02 21:43:56,110 127.0.0.1 - - [02/Jun/2025 21:43:56] "[36mGET /dashboard?__debugger__=yes&cmd=resource&f=console.png&s=tWIHKgUkWhfEbgWZeDwM HTTP/1.1[0m" 304 -
+2025-06-02 21:47:14,132  * Detected change in 'C:\\Users\\John\\license_manager\\app.py', reloading
+2025-06-02 21:47:14,178  * Restarting with stat

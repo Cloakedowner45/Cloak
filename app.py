@@ -1,195 +1,128 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
-from datetime import datetime, timedelta
-import logging
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify, make_response
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timezone
+import uuid
 
 app = Flask(__name__)
-app.secret_key = 'zerixxsecret1$'  # Change this to a strong secret key
+app.secret_key = 'supersecretkey'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
+db = SQLAlchemy(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# --- User and role data ---
-class User(UserMixin):
-    def __init__(self, id, role='user'):
-        self.id = id
-        self.role = role
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+    role = db.Column(db.String(50), default='user')
+    email = db.Column(db.String(150), nullable=True)
+    security_question = db.Column(db.String(255), nullable=True)
+    security_answer = db.Column(db.String(255), nullable=True)
 
-    @property
-    def username(self):
-        return self.id
-
-users = {
-    "Zerixx": {
-        "password": "Zerixxpass",
-        "role": "admin",
-        "security_question": "Your pet's name?",
-        "security_answer": "fluffy"
-    },
-    "User1": {
-        "password": "User1pass",
-        "role": "user",
-        "security_question": "Favorite color?",
-        "security_answer": "blue"
-    }
-}
-
-# --- Login attempt tracking ---
-login_attempts = {}
-LOCKOUT_TIME = timedelta(minutes=5)
-MAX_ATTEMPTS = 5
-
-# --- Login analytics ---
-logging.basicConfig(filename='login_analytics.log', level=logging.INFO, 
-                    format='%(asctime)s %(message)s')
+class AuditLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer)
+    action = db.Column(db.String(255))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(user_id):
-    if user_id in users:
-        role = users[user_id].get('role', 'user')
-        return User(user_id, role)
-    return None
+    return User.query.get(int(user_id))
 
-def is_locked_out(username):
-    record = login_attempts.get(username)
-    if record:
-        attempts, last_time, locked_until = record
-        if locked_until and datetime.now() < locked_until:
-            return True, int((locked_until - datetime.now()).total_seconds())
-    return False, 0
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
+def home():
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        user = users.get(username)
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
 
-        print(f"Login attempt: username='{username}', password='{password}'")  # Debug print
-
-        locked, seconds_left = is_locked_out(username)
-        if locked:
-            flash(f'⚠️ Account locked due to multiple failed attempts. Try again in {seconds_left} seconds.')
-            return redirect(url_for('login'))
-
-        if user and user['password'] == password:
-            # Reset login attempts
-            login_attempts.pop(username, None)
-            user_obj = User(username, user.get('role', 'user'))
-            login_user(user_obj)
-
-            # Set trusted device cookie (expires in 30 days)
-            resp = make_response(redirect(url_for('dashboard')))
-            resp.set_cookie('device_id', f"{username}_trusted", max_age=60*60*24*30)
-
-            ip = request.remote_addr
-            logging.info(f"SUCCESS login for {username} from IP {ip}")
-
-            return resp
+        if user and check_password_hash(user.password, password):
+            session['username'] = username
+            session['user_id'] = user.id
+            session['last_active'] = datetime.now(timezone.utc)
+            login_user(user)
+            return redirect(url_for('security_question'))
         else:
-            # Failed attempt tracking
-            now = datetime.now()
-            attempts, last_time, locked_until = login_attempts.get(username, (0, None, None))
-            if last_time and now - last_time > LOCKOUT_TIME:
-                attempts = 0  # Reset after lockout period
-
-            attempts += 1
-            if attempts >= MAX_ATTEMPTS:
-                locked_until = now + LOCKOUT_TIME
-                flash('⚠️ Too many failed attempts. Your account is locked for 5 minutes.')
-                logging.info(f"LOCKOUT triggered for {username}")
-            else:
-                locked_until = None
-                flash('❌ Invalid username or password')
-
-            login_attempts[username] = (attempts, now, locked_until)
-
-            ip = request.remote_addr
-            logging.info(f"FAILED login attempt {attempts} for {username} from IP {ip}")
-
-            return redirect(url_for('login'))
+            flash('Invalid username or password.')
 
     return render_template('login.html')
+
+@app.route('/security-question', methods=['GET', 'POST'])
+@login_required
+def security_question():
+    user = current_user
+
+    if request.method == 'POST':
+        answer = request.form['answer'].strip().lower()
+        if user.security_answer.strip().lower() == answer:
+            session['last_active'] = datetime.now(timezone.utc)
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Incorrect answer.')
+
+    return render_template('security_question.html', question=user.security_question)
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    last_active = session.get('last_active')
+    now = datetime.now(timezone.utc)
+    if last_active and (now - last_active).total_seconds() > 600:
+        logout_user()
+        flash('⏰ Session expired. Please log in again.')
+        return redirect(url_for('login'))
+
+    session['last_active'] = now
+    return render_template('dashboard.html', role=current_user.role)
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    session.pop('show_passwords', None)
-    flash("👋 You've been logged out.")
+    session.clear()
+    flash('Logged out successfully.')
     return redirect(url_for('login'))
 
-@app.route('/dashboard', methods=['GET'])
+@app.route('/admin')
 @login_required
-def dashboard():
-    # Session timeout: 10 minutes inactivity
-    last_active = session.get('last_active')
-    now = datetime.now()
-    if last_active and (now - last_active).total_seconds() > 600:
-        logout_user()
-        flash('⏰ Session expired due to inactivity. Please log in again.')
-        return redirect(url_for('login'))
-
-    session['last_active'] = now
-
-    show_passwords = session.get('show_passwords', False)
-    trusted_device = request.cookies.get('device_id') == f"{current_user.id}_trusted"
-
-    # Role-based dashboard: Could redirect to different pages if needed
-    return render_template('dashboard.html',
-                           show_passwords=show_passwords,
-                           role=current_user.role,
-                           trusted_device=trusted_device,
-                           current_user=current_user)
-
-@app.route('/verify_pin', methods=['POST'])
-@login_required
-def verify_pin():
-    pin = request.form.get('pin')
-    correct_pin = "9909"  # Replace with secure PIN validation
-
-    if pin == correct_pin:
-        session['show_passwords'] = True
-        flash('🔑 PIN verified! Passwords are now visible.')
-    else:
-        session['show_passwords'] = False
-        flash('❌ Incorrect PIN. Please try again.')
-
-    return redirect(url_for('dashboard'))
-
-@app.route('/security_question', methods=['GET', 'POST'])
-def security_question():
-    question = ''
-    if request.method == 'POST':
-        username = request.form.get('username')
-        answer = request.form.get('answer', '').lower()
-        user = users.get(username)
-
-        if user and user['security_answer'].lower() == answer:
-            flash('✅ Security question passed! Password reset options coming soon.')
-            # TODO: Add password reset flow or email link here
-        else:
-            flash('❌ Wrong answer to the security question.')
-
-        question = users.get(username, {}).get('security_question', '')
-    else:
-        username = request.args.get('username')
-        if username:
-            question = users.get(username, {}).get('security_question', '')
-
-    return render_template('security_question.html', question=question)
-
-@app.route('/admin/suspend_key/<key_id>', methods=['POST'])
-@login_required
-def suspend_key(key_id):
+def admin():
     if current_user.role != 'admin':
-        flash("❌ Unauthorized access.")
         return redirect(url_for('dashboard'))
 
-    # TODO: Add suspension logic here (e.g., update DB to mark key as suspended)
-    flash(f"🔒 License key {key_id} suspended successfully.")
-    return redirect(url_for('dashboard'))
+    users = User.query.all()
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(20).all()
+    return render_template('admin.html', users=users, logs=logs)
+
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if current_user.role != 'admin':
+        return redirect(url_for('dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    if user.id != current_user.id:
+        db.session.delete(user)
+        db.session.commit()
+        flash('User deleted.')
+    return redirect(url_for('admin'))
+
+@app.route('/users')
+@login_required
+def all_users():
+    users = User.query.all()
+    return render_template('users.html', users=users)
 
 if __name__ == '__main__':
     app.run(debug=True)
