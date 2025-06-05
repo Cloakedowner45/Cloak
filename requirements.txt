@@ -12,6 +12,7 @@ Flask-Limiter==3.12
 Flask-Login==0.6.3
 Flask-Migrate==4.1.0
 Flask-SQLAlchemy==3.1.1
+Flask-wtf
 greenlet==3.2.2
 gunicorn==21.2.0
 idna==3.10
